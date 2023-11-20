@@ -135,8 +135,6 @@ abstract class StripeBase extends AbstractPaymentProcessor {
             customer,
         } = context
 
-        //console.log(context)
-
         const description = (cart_context.payment_description ??
             this.options_?.payment_description) as string
         
@@ -161,7 +159,6 @@ abstract class StripeBase extends AbstractPaymentProcessor {
         const cart = await this.cartService.retrieve(resource_id, {
             relations: ["items", "items.variant", "items.variant.product"]
         })
-        console.log(cart)
 
         const subscriptionItems = cart.items
             .filter((item) => item.variant.product.type_id === SUBSCRIPTION_TYPE_ID)
@@ -190,6 +187,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
         }
 
         const session_data = (subscription.latest_invoice as Stripe.Invoice).payment_intent as unknown as Record<string, unknown>
+        console.log(session_data)
 
         return {
             session_data,

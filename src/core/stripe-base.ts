@@ -1,7 +1,9 @@
 import { 
     AbstractPaymentProcessor,
     Cart,
+    CartService,
     isPaymentProcessorError,
+    MedusaContainer,
     PaymentProcessorContext,
     PaymentProcessorError,
     PaymentProcessorSessionResponse,
@@ -23,10 +25,12 @@ abstract class StripeBase extends AbstractPaymentProcessor {
 
     protected readonly options_: StripeOptions
     protected stripe_: Stripe
+    protected cartService: CartService
 
-    protected constructor(_, options) {
-        super(_, options)
+    protected constructor(container, options) {
+        super(container, options)
 
+        this.cartService = container.cartService as CartService
         this.options_ = options
         
         this.init()
@@ -127,10 +131,11 @@ abstract class StripeBase extends AbstractPaymentProcessor {
             currency_code,
             amount,
             resource_id,
+            billing_address,
             customer,
         } = context
 
-        console.log(context)
+        //console.log(context)
 
         const description = (cart_context.payment_description ??
             this.options_?.payment_description) as string
@@ -153,7 +158,12 @@ abstract class StripeBase extends AbstractPaymentProcessor {
             customer_id = stripeCustomer.id
         }
 
-        const subscriptionItems = (cart_context as unknown as Cart).items
+        const cart = await this.cartService.retrieve(resource_id, {
+            relations: ["items", "items.variant", "items.variant.product"]
+        })
+        console.log(cart)
+
+        const subscriptionItems = cart.items
             .filter((item) => item.variant.product.type_id === SUBSCRIPTION_TYPE_ID)
             .map((item) => {
                 return {

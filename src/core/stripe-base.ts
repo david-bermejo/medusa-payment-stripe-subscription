@@ -39,7 +39,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
     protected init(): void {
         this.stripe_ = this.stripe_ ||
             new Stripe(this.options_.api_key, {
-                apiVersion: '2022-11-15'
+                apiVersion: "2023-10-16"
             })
     }
 

@@ -135,9 +135,23 @@ abstract class StripeBase extends AbstractPaymentProcessor {
             customer,
         } = context
 
+        // Create address object
+        let address
+        if (billing_address) {
+            address = {
+                line1: billing_address.address_1,
+                line2: billing_address.address_2,
+                city: billing_address.city,
+                country: billing_address.country_code,
+                postal_code: billing_address.postal_code
+            }
+        }
+
+        // Check description
         const description = (cart_context.payment_description ??
             this.options_?.payment_description) as string
         
+        // Create Stripe customer if first time
         let customer_id: string
         if (customer?.metadata?.stripe_id) {
             customer_id = customer.metadata.stripe_id as string
@@ -145,7 +159,10 @@ abstract class StripeBase extends AbstractPaymentProcessor {
             let stripeCustomer: Stripe.Customer
             try {
                 stripeCustomer = await this.stripe_.customers.create({
+                    name: `${customer?.first_name} ${customer?.last_name}`,
+                    phone: customer?.phone,
                     email,
+                    address
                 })
             } catch (e) {
                 return this.buildError(
@@ -168,7 +185,6 @@ abstract class StripeBase extends AbstractPaymentProcessor {
                     quantity: item.quantity
                 }
             })
-        console.log("Subscription items:", subscriptionItems)
 
         let subscription: Stripe.Subscription
         try {
@@ -187,12 +203,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
             )
         }
 
-        console.log("Items:", [...subscriptionItems])
-        console.log("Customer id:", customer_id)
-        console.log("Subscription:", subscription)
-
         const session_data = (subscription.latest_invoice as Stripe.Invoice).payment_intent as unknown as Record<string, unknown>
-        console.log(session_data)
 
         return {
             session_data,

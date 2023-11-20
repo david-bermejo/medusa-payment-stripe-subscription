@@ -1,6 +1,6 @@
 {
-  "name": "medusa-payment-stripe",
-  "version": "1.0.0",
+  "name": "medusa-payment-stripe-subscription",
+  "version": "0.0.1",
   "description": "Stripe Payment provider for Medusa Commerce with Subscriptions support",
   "main": "dist/index.js",
   "repository": {

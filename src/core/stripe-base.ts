@@ -168,6 +168,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
                     quantity: item.quantity
                 }
             })
+        console.log("Subscription items:", subscriptionItems)
 
         let subscription: Stripe.Subscription
         try {

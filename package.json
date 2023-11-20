@@ -13,14 +13,16 @@
   "author": "Medusa",
   "license": "MIT",
   "scripts": {
-    "prepublishOnly": "cross-env NODE_ENV=production tsc --build",
+    "prepublishOnly": "cross-env NODE_ENV=production npm run build",
     "test": "jest --passWithNoTests src",
-    "build": "rimraf dist && tsc -p ./tsconfig.server.json && medusa-admin bundle",
-    "watch": "tsc --watch"
+    "build": "swc ./src -d ./dist --ignore '**/__tests__','**/__mocks__'",
+    "watch": "swc -w ./src -d ./dist --ignore '**/__tests__','**/__mocks__'"
   },
   "devDependencies": {
     "@medusajs/admin": "^7.1.7",
     "@medusajs/medusa": "^1.17.4",
+    "@swc/cli": "^0.1.63",
+    "@swc/core": "^1.3.96",
     "@tanstack/react-table": "^8.7.9",
     "@types/jest": "^29.5.8",
     "@types/stripe": "^8.0.417",
@@ -28,7 +30,6 @@
     "cross-env": "^5.2.1",
     "jest": "^25.5.4",
     "medusa-react": "^9.0.11",
-    "rimraf": "^5.0.1",
     "typescript": "^4.9.5"
   },
   "peerDependenciesMeta": {

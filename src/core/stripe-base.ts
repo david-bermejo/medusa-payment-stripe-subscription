@@ -187,6 +187,10 @@ abstract class StripeBase extends AbstractPaymentProcessor {
             )
         }
 
+        console.log("Items:", [...subscriptionItems])
+        console.log("Customer id:", customer_id)
+        console.log("Subscription:", subscription)
+
         const session_data = (subscription.latest_invoice as Stripe.Invoice).payment_intent as unknown as Record<string, unknown>
         console.log(session_data)
 

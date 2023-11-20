@@ -1,22 +1,19 @@
 {
   "name": "medusa-payment-stripe-subscription",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Stripe Payment provider for Medusa Commerce with Subscriptions support",
-  "main": "dist/index.js",
+  "main": "index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/david-bermejo/medusa-payment-stripe-subscription"
   },
-  "files": [
-    "dist"
-  ],
   "author": "Medusa",
   "license": "MIT",
   "scripts": {
     "prepublishOnly": "cross-env NODE_ENV=production npm run build",
     "test": "jest --passWithNoTests src",
-    "build": "swc ./src -d ./dist --ignore '**/__tests__','**/__mocks__'",
-    "watch": "swc -w ./src -d ./dist --ignore '**/__tests__','**/__mocks__'"
+    "build": "swc ./src -d . --ignore '**/__tests__','**/__mocks__'",
+    "watch": "swc -w ./src -d . --ignore '**/__tests__','**/__mocks__'"
   },
   "devDependencies": {
     "@medusajs/admin": "^7.1.7",
@@ -51,7 +48,6 @@
     "medusa-core-utils": "^1.2.0",
     "stripe": "^11.10.0"
   },
-  "gitHead": "81a7ff73d012fda722f6e9ef0bd9ba0232d37808",
   "keywords": [
     "medusa-plugin",
     "medusa-plugin-payment"

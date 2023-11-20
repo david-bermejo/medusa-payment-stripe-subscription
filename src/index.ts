@@ -1,4 +1,4 @@
-export * from "./types"
+export * from "./types/stripe"
 export * from "./core/stripe-base"
 export * from "./services/stripe-blik"
 export * from "./services/stripe-bancontact"

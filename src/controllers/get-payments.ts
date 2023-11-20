@@ -1,7 +1,7 @@
 import { OrderService } from "@medusajs/medusa"
 import Stripe from "stripe"
 import StripeBase from "../core/stripe-base"
-import { WidgetPayment } from "../types"
+import { WidgetPayment } from "../types/stripe"
 
 export async function getStripePayments(req): Promise<WidgetPayment[]> {
   const { order_id } = req.params

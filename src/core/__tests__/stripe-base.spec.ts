@@ -34,7 +34,7 @@ import {
   STRIPE_ID,
   StripeMock,
 } from "../../__mocks__/stripe"
-import { ErrorIntentStatus } from "../../types"
+import { ErrorIntentStatus } from "../../types/stripe"
 
 const container = {}
 

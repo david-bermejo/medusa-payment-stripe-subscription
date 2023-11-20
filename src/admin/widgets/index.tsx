@@ -1,6 +1,6 @@
 import { OrderDetailsWidgetProps, WidgetConfig } from "@medusajs/admin"
 import { useAdminCustomQuery } from "medusa-react"
-import { ListStripeIntentRes } from "../../types"
+import { ListStripeIntentRes } from "../../types/stripe"
 import { Container } from "../shared/components/container"
 import Table from "../shared/components/table"
 import StripeLogo from "../shared/icons/stripe-logo"

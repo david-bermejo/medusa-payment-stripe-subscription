@@ -8,7 +8,7 @@ import moment from "moment"
 import Badge from "./badge"
 import StatusIndicator from "./dot"
 import { formatAmount } from "medusa-react"
-import { WidgetPayment } from "../../../types"
+import { WidgetPayment } from "../../../types/stripe"
 import LinkIcon from "../icons/link"
 
 const STRIPE_DASHBOARD_URL = "https://dashboard.stripe.com"

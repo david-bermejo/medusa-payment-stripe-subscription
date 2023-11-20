@@ -1,6 +1,6 @@
 import { PaymentIntentDataByStatus } from "../__fixtures__/data"
 import Stripe from "stripe";
-import { ErrorCodes, ErrorIntentStatus } from "../types";
+import { ErrorCodes, ErrorIntentStatus } from "../types/stripe";
 
 export const WRONG_CUSTOMER_EMAIL = "wrong@test.fr"
 export const EXISTING_CUSTOMER_EMAIL = "right@test.fr"

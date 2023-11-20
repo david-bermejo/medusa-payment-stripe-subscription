@@ -1,12 +1,11 @@
 {
   "name": "medusa-payment-stripe",
-  "version": "6.0.6",
-  "description": "Stripe Payment provider for Medusa Commerce",
+  "version": "1.0.0",
+  "description": "Stripe Payment provider for Medusa Commerce with Subscriptions support",
   "main": "dist/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/medusajs/medusa",
-    "directory": "packages/medusa-payment-stripe"
+    "url": "https://github.com/david-bermejo/medusa-payment-stripe-subscription"
   },
   "files": [
     "dist"

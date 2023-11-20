@@ -12,7 +12,7 @@
   "scripts": {
     "prepare": "cross-env NODE_ENV=production tsc --build",
     "test": "jest --passWithNoTests src",
-    "build": "rimraf dist && tsc -p ./tsconfig.server.json && medusa-admin bundle",
+    "build": "rimraf dist && tsc -p ./tsconfig.server.json",
     "watch": "tsc --watch"
   },
   "files": [

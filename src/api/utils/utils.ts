@@ -8,6 +8,7 @@ import { AwilixContainer } from "awilix"
 import { MedusaError } from "medusa-core-utils"
 import { EOL } from "os"
 import Stripe from "stripe"
+import StripeBase from "../../core/stripe-base"
 
 const PAYMENT_PROVIDER_KEY = "pp_stripe"
 
@@ -134,11 +135,13 @@ async function onInvoicePaymentEvent({
 }) {
     const manager = container.resolve("manager")
     const subscriptionService = container.resolve("subscriptionService")
-    console.log(invoice)
+    const stripeBase: StripeBase = container.resolve("stripeProviderService")
+    console.log("Invoice:", invoice)
 
     await manager.transaction(async (transactionManager) => {
-        const stripeSubscription = invoice.subscription as Stripe.Subscription
-        
+        const stripeSubscription = await stripeBase.getStripe()
+            .subscriptions.retrieve(invoice.subscription)
+        console.log("Subscription:", stripeSubscription)
 
         const subscription = await subscriptionService.retrieveByStripeSubscriptionId(
             stripeSubscription.id
@@ -317,7 +320,12 @@ async function createSubscription({
     transactionManager,
 }) {
     const subscriptionService = container.resolve("subscriptionService")
-    const subscription = invoice.subscription as Stripe.Subscription
+    const stripeBase: StripeBase = container.resolve("stripeProviderService")
+    console.log("Invoice:", invoice)
+
+    const subscription = await stripeBase.getStripe()
+            .subscriptions.retrieve(invoice.subscription)
+    console.log("Subscription:", subscription)
 
     const payload = {
         stripe_subscription_id: subscription.id,

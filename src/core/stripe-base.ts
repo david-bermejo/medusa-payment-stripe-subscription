@@ -152,17 +152,10 @@ abstract class StripeBase extends AbstractPaymentProcessor {
             this.options_?.payment_description) as string
         
         // Check if Stripe customer exists
-        let customer_id = customer?.metadata?.stripe_id as string | null
-        if (customer_id) {
-            try {
-                await this.stripe_.customers.retrieve(customer_id)
-            } catch {
-                customer_id = null
-            }
-        }
-
-        // Create Stripe customer if not
-        if (!customer_id) {
+        let customer_id: string
+        if (customer?.metadata?.stripe_id) {
+            customer_id = customer?.metadata?.stripe_id as string
+        } else {
             let stripeCustomer: Stripe.Customer
             try {
                 stripeCustomer = await this.stripe_.customers.create({
@@ -212,7 +205,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
                 payment_settings: { save_default_payment_method: 'on_subscription' },
                 expand: ['latest_invoice.payment_intent'],
                 metadata: {
-                    customer_id: customer?.id || null,
+                    customer_id: customer_id || null,
                     product_id: subscriptionItem.product_id
                 }
             })

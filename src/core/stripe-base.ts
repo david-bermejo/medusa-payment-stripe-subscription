@@ -171,6 +171,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
                 )
             }
             customer_id = stripeCustomer.id
+            console.log("Customer:", stripeCustomer)
         }
 
         const cart = await this.cartService.retrieve(resource_id, {
@@ -189,6 +190,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
         }
 
         const subscriptionItem = subscriptionItems[0]
+        console.log(subscriptionItem)
 
         let subscription: Stripe.Subscription
         try {
@@ -207,6 +209,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
                     product_id: subscriptionItem.product_id
                 }
             })
+            console.log("Customer:", subscription)
         } catch (e) {
             return this.buildError(
                 "An error occurred in InitiatePayment during the creation of the stripe subscription object",

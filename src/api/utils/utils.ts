@@ -134,9 +134,11 @@ async function onInvoicePaymentEvent({
 }) {
     const manager = container.resolve("manager")
     const subscriptionService = container.resolve("subscriptionService")
+    console.log(invoice)
 
     await manager.transaction(async (transactionManager) => {
         const stripeSubscription = invoice.subscription as Stripe.Subscription
+        
 
         const subscription = await subscriptionService.retrieveByStripeSubscriptionId(
             stripeSubscription.id
@@ -163,6 +165,7 @@ async function onPaymentIntentSucceeded({
     container,
 }) {
     const manager = container.resolve("manager")
+    console.log(paymentIntent)
 
     await manager.transaction(async (transactionManager) => {
         if (isPaymentCollection) {

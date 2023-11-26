@@ -1,8 +1,8 @@
 import {
-  AbstractCartCompletionStrategy,
-  CartService,
-  IdempotencyKeyService,
-  PostgresError,
+    AbstractCartCompletionStrategy,
+    CartService,
+    IdempotencyKeyService,
+    PostgresError,
 } from "@medusajs/medusa"
 import { AwilixContainer } from "awilix"
 import { MedusaError } from "medusa-core-utils"
@@ -12,251 +12,334 @@ import Stripe from "stripe"
 const PAYMENT_PROVIDER_KEY = "pp_stripe"
 
 export function constructWebhook({
-  signature,
-  body,
-  container,
+    signature,
+    body,
+    container,
 }: {
-  signature: string | string[] | undefined
-  body: any
-  container: AwilixContainer
+    signature: string | string[] | undefined
+    body: any
+    container: AwilixContainer
 }): Stripe.Event {
-  const stripeProviderService = container.resolve(PAYMENT_PROVIDER_KEY)
-  return stripeProviderService.constructWebhookEvent(body, signature)
+    const stripeProviderService = container.resolve(PAYMENT_PROVIDER_KEY)
+    return stripeProviderService.constructWebhookEvent(body, signature)
 }
 
 export function isPaymentCollection(id) {
-  return id && id.startsWith("paycol")
+    return id && id.startsWith("paycol")
 }
 
 export function buildError(event: string, err: Stripe.StripeRawError): string {
-  let message = `Stripe webhook ${event} handling failed${EOL}${
-    err?.detail ?? err?.message
-  }`
-  if (err?.code === PostgresError.SERIALIZATION_FAILURE) {
-    message = `Stripe webhook ${event} handle failed. This can happen when this webhook is triggered during a cart completion and can be ignored. This event should be retried automatically.${EOL}${
-      err?.detail ?? err?.message
+    let message = `Stripe webhook ${event} handling failed${EOL}${
+        err?.detail ?? err?.message
     }`
-  }
-  if (err?.code === "409") {
-    message = `Stripe webhook ${event} handle failed.${EOL}${
-      err?.detail ?? err?.message
-    }`
-  }
+    if (err?.code === PostgresError.SERIALIZATION_FAILURE) {
+        message = `Stripe webhook ${event} handle failed. This can happen when this webhook is triggered during a cart completion and can be ignored. This event should be retried automatically.${EOL}${
+            err?.detail ?? err?.message
+        }`
+    }
+    if (err?.code === "409") {
+        message = `Stripe webhook ${event} handle failed.${EOL}${
+            err?.detail ?? err?.message
+        }`
+    }
 
-  return message
+    return message
 }
 
 export async function handlePaymentHook({
-  event,
-  container,
-  paymentIntent,
+    event,
+    container,
+    paymentIntent,
 }: {
-  event: { type: string; id: string }
-  container: AwilixContainer
-  paymentIntent: {
-    id: string
-    metadata: { cart_id?: string; resource_id?: string }
-    last_payment_error?: { message: string }
-  }
-}): Promise<{ statusCode: number }> {
-  const logger = container.resolve("logger")
-
-  const cartId =
-    paymentIntent.metadata.cart_id ?? paymentIntent.metadata.resource_id // Backward compatibility
-  const resourceId = paymentIntent.metadata.resource_id
-
-  switch (event.type) {
-    case "payment_intent.succeeded":
-      try {
-        await onPaymentIntentSucceeded({
-          eventId: event.id,
-          paymentIntent,
-          cartId,
-          resourceId,
-          isPaymentCollection: isPaymentCollection(resourceId),
-          container,
-        })
-      } catch (err) {
-        const message = buildError(event.type, err)
-        logger.warn(message)
-        return { statusCode: 409 }
-      }
-
-      break
-    case "payment_intent.amount_capturable_updated":
-      try {
-        await onPaymentAmountCapturableUpdate({
-          eventId: event.id,
-          cartId,
-          container,
-        })
-      } catch (err) {
-        const message = buildError(event.type, err)
-        logger.warn(message)
-        return { statusCode: 409 }
-      }
-
-      break
-    case "payment_intent.payment_failed": {
-      const message =
-        paymentIntent.last_payment_error &&
-        paymentIntent.last_payment_error.message
-      logger.error(
-        `The payment of the payment intent ${paymentIntent.id} has failed${EOL}${message}`
-      )
-      break
+    event: { type: string; id: string }
+    container: AwilixContainer
+    paymentIntent: {
+        id: string
+        metadata: { cart_id?: string; resource_id?: string }
+        last_payment_error?: { message: string }
     }
-    default:
-      return { statusCode: 204 }
-  }
+}): Promise<{ statusCode: number }> {
+    const logger = container.resolve("logger")
 
-  return { statusCode: 200 }
+    const cartId =
+        paymentIntent.metadata.cart_id ?? paymentIntent.metadata.resource_id // Backward compatibility
+    const resourceId = paymentIntent.metadata.resource_id
+
+    switch (event.type) {
+        case "invoice.payment_succeeded":
+        case "invoice.payment_failed":
+            try {
+                await onInvoicePaymentEvent({
+                    invoice: paymentIntent,
+                    container
+                })
+            } catch (err) {
+                const message = buildError(event.type, err)
+                logger.warn(message)
+                return { statusCode: 409 }
+            }
+
+            break
+            
+        case "payment_intent.succeeded":
+            try {
+                await onPaymentIntentSucceeded({
+                    eventId: event.id,
+                    paymentIntent,
+                    cartId,
+                    resourceId,
+                    isPaymentCollection: isPaymentCollection(resourceId),
+                    container,
+                })
+            } catch (err) {
+                const message = buildError(event.type, err)
+                logger.warn(message)
+                return { statusCode: 409 }
+            }
+
+            break
+        case "payment_intent.amount_capturable_updated":
+            try {
+                await onPaymentAmountCapturableUpdate({
+                    eventId: event.id,
+                    cartId,
+                    container,
+                })
+            } catch (err) {
+                const message = buildError(event.type, err)
+                logger.warn(message)
+                return { statusCode: 409 }
+            }
+
+            break
+        case "payment_intent.payment_failed": {
+                const message =
+                    paymentIntent.last_payment_error &&
+                    paymentIntent.last_payment_error.message
+                logger.error(
+                    `The payment of the payment intent ${paymentIntent.id} has failed${EOL}${message}`
+                )
+                break
+            }
+        default:
+            return { statusCode: 204 }
+    }
+
+    return { statusCode: 200 }
+}
+
+async function onInvoicePaymentEvent({
+    invoice,
+    container
+}) {
+    const manager = container.resolve("manager")
+    const subscriptionService = container.resolve("subscriptionService")
+
+    await manager.transaction(async (transactionManager) => {
+        const stripeSubscription = invoice.subscription as Stripe.Subscription
+
+        const subscription = await subscriptionService.retrieveByStripeSubscriptionId(
+            stripeSubscription.id
+        )
+
+        const payload = {
+            status: getSubscriptionStatus(stripeSubscription.status),
+            current_period_start: new Date(stripeSubscription.current_period_start * 1000),
+            current_period_end: new Date(stripeSubscription.current_period_end * 1000),
+        }
+
+        await subscriptionService
+            .withTransaction(transactionManager)
+            .update(subscription.id, payload)
+    })
 }
 
 async function onPaymentIntentSucceeded({
-  eventId,
-  paymentIntent,
-  cartId,
-  resourceId,
-  isPaymentCollection,
-  container,
+    eventId,
+    paymentIntent,
+    cartId,
+    resourceId,
+    isPaymentCollection,
+    container,
 }) {
-  const manager = container.resolve("manager")
+    const manager = container.resolve("manager")
 
-  await manager.transaction(async (transactionManager) => {
-    if (isPaymentCollection) {
-      await capturePaymenCollectiontIfNecessary({
-        paymentIntent,
-        resourceId,
-        container,
-      })
-    } else {
-      await completeCartIfNecessary({
-        eventId,
-        cartId,
-        container,
-        transactionManager,
-      })
+    await manager.transaction(async (transactionManager) => {
+        if (isPaymentCollection) {
+            await capturePaymenCollectiontIfNecessary({
+                paymentIntent,
+                resourceId,
+                container,
+            })
+        } else {
+            await completeCartIfNecessary({
+                eventId,
+                cartId,
+                container,
+                transactionManager,
+            })
 
-      await capturePaymentIfNecessary({
-        cartId,
-        transactionManager,
-        container,
-      })
-    }
-  })
+            await capturePaymentIfNecessary({
+                cartId,
+                transactionManager,
+                container,
+            })
+        }
+
+        await createSubscription({
+            invoice: paymentIntent,
+            container,
+            transactionManager,
+        })
+    })
 }
 
 async function onPaymentAmountCapturableUpdate({ eventId, cartId, container }) {
-  const manager = container.resolve("manager")
+    const manager = container.resolve("manager")
 
-  await manager.transaction(async (transactionManager) => {
-    await completeCartIfNecessary({
-      eventId,
-      cartId,
-      container,
-      transactionManager,
+    await manager.transaction(async (transactionManager) => {
+        await completeCartIfNecessary({
+            eventId,
+            cartId,
+            container,
+            transactionManager,
+        })
     })
-  })
 }
 
 async function capturePaymenCollectiontIfNecessary({
-  paymentIntent,
-  resourceId,
-  container,
+    paymentIntent,
+    resourceId,
+    container,
 }) {
-  const manager = container.resolve("manager")
-  const paymentCollectionService = container.resolve("paymentCollectionService")
+    const manager = container.resolve("manager")
+    const paymentCollectionService = container.resolve("paymentCollectionService")
 
-  const paycol = await paymentCollectionService
-    .retrieve(resourceId, { relations: ["payments"] })
-    .catch(() => undefined)
+    const paycol = await paymentCollectionService
+        .retrieve(resourceId, { relations: ["payments"] })
+        .catch(() => undefined)
 
-  if (paycol?.payments?.length) {
-    const payment = paycol.payments.find(
-      (pay) => pay.data.id === paymentIntent.id
-    )
+    if (paycol?.payments?.length) {
+        const payment = paycol.payments.find(
+            (pay) => pay.data.id === paymentIntent.id
+        )
 
-    if (payment && !payment.captured_at) {
-      await manager.transaction(async (manager) => {
-        await paymentCollectionService
-          .withTransaction(manager)
-          .capture(payment.id)
-      })
+        if (payment && !payment.captured_at) {
+            await manager.transaction(async (manager) => {
+                await paymentCollectionService
+                    .withTransaction(manager)
+                    .capture(payment.id)
+            })
+        }
     }
-  }
 }
 
 async function capturePaymentIfNecessary({
-  cartId,
-  transactionManager,
-  container,
+    cartId,
+    transactionManager,
+    container,
 }) {
-  const orderService = container.resolve("orderService")
-  const order = await orderService
-    .withTransaction(transactionManager)
-    .retrieveByCartId(cartId)
-    .catch(() => undefined)
+    const orderService = container.resolve("orderService")
+    const order = await orderService
+        .withTransaction(transactionManager)
+        .retrieveByCartId(cartId)
+        .catch(() => undefined)
 
-  if (order && order.payment_status !== "captured") {
-    await orderService
-      .withTransaction(transactionManager)
-      .capturePayment(order.id)
-  }
+    if (order && order.payment_status !== "captured") {
+        await orderService
+            .withTransaction(transactionManager)
+            .capturePayment(order.id)
+    }
 }
 
 async function completeCartIfNecessary({
-  eventId,
-  cartId,
-  container,
-  transactionManager,
+    eventId,
+    cartId,
+    container,
+    transactionManager,
 }) {
-  const orderService = container.resolve("orderService")
-  const order = await orderService
-    .retrieveByCartId(cartId)
-    .catch(() => undefined)
+    const orderService = container.resolve("orderService")
+    const order = await orderService
+        .retrieveByCartId(cartId)
+        .catch(() => undefined)
 
-  if (!order) {
-    const completionStrat: AbstractCartCompletionStrategy = container.resolve(
-      "cartCompletionStrategy"
-    )
-    const cartService: CartService = container.resolve("cartService")
-    const idempotencyKeyService: IdempotencyKeyService = container.resolve(
-      "idempotencyKeyService"
-    )
+    if (!order) {
+        const completionStrat: AbstractCartCompletionStrategy = container.resolve(
+            "cartCompletionStrategy"
+        )
+        const cartService: CartService = container.resolve("cartService")
+        const idempotencyKeyService: IdempotencyKeyService = container.resolve(
+            "idempotencyKeyService"
+        )
 
-    const idempotencyKeyServiceTx =
-      idempotencyKeyService.withTransaction(transactionManager)
-    let idempotencyKey = await idempotencyKeyServiceTx
-      .retrieve({
-        request_path: "/stripe/hooks",
-        idempotency_key: eventId,
-      })
-      .catch(() => undefined)
+        const idempotencyKeyServiceTx =
+            idempotencyKeyService.withTransaction(transactionManager)
+        let idempotencyKey = await idempotencyKeyServiceTx
+            .retrieve({
+                request_path: "/stripe/hooks",
+                idempotency_key: eventId,
+            })
+            .catch(() => undefined)
 
-    if (!idempotencyKey) {
-      idempotencyKey = await idempotencyKeyService
+        if (!idempotencyKey) {
+            idempotencyKey = await idempotencyKeyService
+                .withTransaction(transactionManager)
+                .create({
+                    request_path: "/stripe/hooks",
+                    idempotency_key: eventId,
+                })
+        }
+
+        const cart = await cartService
+            .withTransaction(transactionManager)
+            .retrieve(cartId, { select: ["context"] })
+
+        const { response_code, response_body } = await completionStrat
+            .withTransaction(transactionManager)
+            .complete(cartId, idempotencyKey, { ip: cart.context?.ip as string })
+
+        if (response_code !== 200) {
+            throw new MedusaError(
+                MedusaError.Types.UNEXPECTED_STATE,
+                response_body["message"] as string,
+                response_body["code"] as string
+            )
+        }
+    }
+}
+
+async function createSubscription({
+    invoice,
+    container,
+    transactionManager,
+}) {
+    const subscriptionService = container.resolve("subscriptionService")
+    const subscription = invoice.subscription as Stripe.Subscription
+
+    const payload = {
+        stripe_subscription_id: subscription.id,
+        status: getSubscriptionStatus(subscription.status),
+        current_period_start: new Date(subscription.current_period_start * 1000),
+        current_period_end: new Date(subscription.current_period_end * 1000),
+        product_id: subscription.metadata.product_id,
+        customer_id: subscription.metadata.customer_id
+    }
+
+    await subscriptionService
         .withTransaction(transactionManager)
-        .create({
-          request_path: "/stripe/hooks",
-          idempotency_key: eventId,
-        })
+        .create(payload)
+}
+
+function getSubscriptionStatus(status: string): string {
+    switch (status) {
+        case "incomplete_expired":
+            return "incomplete"
+        case "trialing":
+            return "active"
+        case "past_due":
+        case "unpaid":
+            return "halted"
+        default:
+            return status
     }
-
-    const cart = await cartService
-      .withTransaction(transactionManager)
-      .retrieve(cartId, { select: ["context"] })
-
-    const { response_code, response_body } = await completionStrat
-      .withTransaction(transactionManager)
-      .complete(cartId, idempotencyKey, { ip: cart.context?.ip as string })
-
-    if (response_code !== 200) {
-      throw new MedusaError(
-        MedusaError.Types.UNEXPECTED_STATE,
-        response_body["message"] as string,
-        response_body["code"] as string
-      )
-    }
-  }
 }

@@ -179,22 +179,33 @@ abstract class StripeBase extends AbstractPaymentProcessor {
 
         const subscriptionItems = cart.items
             .filter((item) => item.variant.product.type_id === SUBSCRIPTION_TYPE_ID)
-            .map((item) => {
-                return {
-                    price: item.variant.metadata?.price_id as string,
-                    quantity: item.quantity
-                }
-            })
+        
+        // Only allow one item
+        if (subscriptionItems.length > 1) {
+            return this.buildError(
+                "An error occurred in InitiatePayment during the subscription items obtention",
+                new Error("Only one subscription item is allowed")
+            )
+        }
+
+        const subscriptionItem = subscriptionItems[0]
 
         let subscription: Stripe.Subscription
         try {
             subscription = await this.stripe_.subscriptions.create({
                 customer: customer_id,
-                items: [...subscriptionItems],
+                items: [{
+                    price: subscriptionItem.variant.metadata?.price_id as string,
+                    quantity: subscriptionItem.quantity
+                }],
                 description,
                 payment_behavior: 'default_incomplete',
                 payment_settings: { save_default_payment_method: 'on_subscription' },
-                expand: ['latest_invoice.payment_intent']
+                expand: ['latest_invoice.payment_intent'],
+                metadata: {
+                    customer_id: customer?.id || null,
+                    product_id: subscriptionItem.product_id
+                }
             })
         } catch (e) {
             return this.buildError(

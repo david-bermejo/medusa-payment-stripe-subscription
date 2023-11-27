@@ -197,7 +197,7 @@ async function onPaymentIntentSucceeded({
         }
 
         await createSubscription({
-            invoice: paymentIntent,
+            paymentIntent,
             container,
             transactionManager,
         })
@@ -319,27 +319,27 @@ async function completeCartIfNecessary({
 }
 
 async function createSubscription({
-    invoice,
+    paymentIntent,
     container,
     transactionManager,
 }) {
     const subscriptionService = container.resolve("subscriptionService")
     const stripeBase: StripeBase = container.resolve("stripeProviderService")
-    console.log("Invoice:", invoice)
+    const subscriptionId = paymentIntent.metadata.subscription_id
 
     const subscription = await subscriptionService
-        .retrieveByStripeSubscriptionId(invoice.subscription)
+        .retrieveByStripeSubscriptionId(subscriptionId)
         .catch(() => undefined)
 
     if (subscription) {
         throw new MedusaError(
             MedusaError.Types.CONFLICT,
-            `Subscription with stripe id ${invoice.subscription} already exists in the database.`,
+            `Subscription with stripe id ${subscriptionId} already exists in the database.`,
         )
     }
     
     const stripeSubscription = await stripeBase.getStripe()
-            .subscriptions.retrieve(invoice.subscription)
+            .subscriptions.retrieve(subscriptionId)
     console.log("Subscription:", stripeSubscription)
 
     const payload = {

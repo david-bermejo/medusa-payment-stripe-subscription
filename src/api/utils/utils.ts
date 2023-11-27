@@ -340,7 +340,7 @@ async function createSubscription({
     
     const stripeSubscription = await stripeBase.getStripe()
             .subscriptions.retrieve(subscriptionId)
-    console.log("Subscription:", stripeSubscription)
+    console.log("Stripe Subscription:", stripeSubscription)
 
     const payload = {
         stripe_subscription_id: stripeSubscription.id,

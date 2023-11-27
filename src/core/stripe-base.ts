@@ -206,7 +206,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
                 expand: ['latest_invoice.payment_intent'],
                 metadata: {
                     customer_id: customer?.id || null,
-                    product_id: subscriptionItem.product_id
+                    product_id: subscriptionItem.variant.product_id
                 }
             })
             console.log("Customer:", subscription)
@@ -221,7 +221,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
         const session_data = await this.stripe_.paymentIntents.update(paymentIntent.id, {
             metadata: {
                 resource_id,
-                subscription_id: subscription.id
+                subscription_id: subscription.id,
             }
         }) as unknown as Record<string, unknown>
 

@@ -143,9 +143,13 @@ async function onInvoicePaymentEvent({
             .subscriptions.retrieve(invoice.subscription)
         console.log("Subscription:", stripeSubscription)
 
-        const subscription = await subscriptionService.retrieveByStripeSubscriptionId(
-            stripeSubscription.id
-        )
+        const subscription = await subscriptionService
+            .retrieveByStripeSubscriptionId(stripeSubscription.id)
+            .catch(() => undefined)
+        
+        if (!subscription) {
+            return
+        }
 
         const payload = {
             status: getSubscriptionStatus(stripeSubscription.status),
@@ -323,17 +327,28 @@ async function createSubscription({
     const stripeBase: StripeBase = container.resolve("stripeProviderService")
     console.log("Invoice:", invoice)
 
-    const subscription = await stripeBase.getStripe()
+    const subscription = await subscriptionService
+        .retrieveByStripeSubscriptionId(invoice.subscription)
+        .catch(() => undefined)
+
+    if (subscription) {
+        throw new MedusaError(
+            MedusaError.Types.CONFLICT,
+            `Subscription with stripe id ${invoice.subscription} already exists in the database.`,
+        )
+    }
+    
+    const stripeSubscription = await stripeBase.getStripe()
             .subscriptions.retrieve(invoice.subscription)
-    console.log("Subscription:", subscription)
+    console.log("Subscription:", stripeSubscription)
 
     const payload = {
-        stripe_subscription_id: subscription.id,
-        status: getSubscriptionStatus(subscription.status),
-        current_period_start: new Date(subscription.current_period_start * 1000),
-        current_period_end: new Date(subscription.current_period_end * 1000),
-        product_id: subscription.metadata.product_id,
-        customer_id: subscription.metadata.customer_id
+        stripe_subscription_id: stripeSubscription.id,
+        status: getSubscriptionStatus(stripeSubscription.status),
+        current_period_start: new Date(stripeSubscription.current_period_start * 1000),
+        current_period_end: new Date(stripeSubscription.current_period_end * 1000),
+        product_id: stripeSubscription.metadata.product_id,
+        customer_id: stripeSubscription.metadata.customer_id
     }
 
     await subscriptionService

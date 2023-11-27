@@ -205,7 +205,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
                 payment_settings: { save_default_payment_method: 'on_subscription' },
                 expand: ['latest_invoice.payment_intent'],
                 metadata: {
-                    customer_id: customer_id || null,
+                    customer_id: customer?.id || null,
                     product_id: subscriptionItem.product_id
                 }
             })

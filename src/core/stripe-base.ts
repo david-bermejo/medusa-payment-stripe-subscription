@@ -217,7 +217,10 @@ abstract class StripeBase extends AbstractPaymentProcessor {
             )
         }
 
-        const session_data = (subscription.latest_invoice as Stripe.Invoice).payment_intent as unknown as Record<string, unknown>
+        const paymentIntent = (subscription.latest_invoice as Stripe.Invoice).payment_intent as Stripe.PaymentIntent
+        const session_data = await this.stripe_.paymentIntents.update(paymentIntent.id, {
+            metadata: { resource_id }
+        }) as unknown as Record<string, unknown>
 
         return {
             session_data,

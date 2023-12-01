@@ -67,6 +67,19 @@ export async function handlePaymentHook({
     const resourceId = paymentIntent.metadata.resource_id
 
     switch (event.type) {
+        case "customer.subscription.deleted":
+            try {
+                await onSubscriptionDeleted({
+                    subscription: paymentIntent,
+                    container
+                })
+            } catch (err) {
+                const message = buildError(event.type, err)
+                logger.warn(message)
+                return { statusCode: 409 }
+            }
+
+            break
         case "invoice.payment_succeeded":
             try {
                 await onInvoicePaymentSucceeded({
@@ -137,6 +150,15 @@ export async function handlePaymentHook({
     }
 
     return { statusCode: 200 }
+}
+
+async function onSubscriptionDeleted({
+    subscription,
+    container
+}) {
+    const subscriptionService = container.resolve("subscriptionService")
+
+    await subscriptionService.delete(subscription.id)
 }
 
 async function onInvoicePaymentFailed({

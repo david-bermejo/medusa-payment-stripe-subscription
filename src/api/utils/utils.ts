@@ -66,22 +66,7 @@ export async function handlePaymentHook({
         paymentIntent.metadata.cart_id ?? paymentIntent.metadata.resource_id // Backward compatibility
     const resourceId = paymentIntent.metadata.resource_id
 
-    switch (event.type) {
-        case "invoice.payment_succeeded":
-        case "invoice.payment_failed":
-            try {
-                await onInvoicePaymentEvent({
-                    invoice: paymentIntent,
-                    container
-                })
-            } catch (err) {
-                const message = buildError(event.type, err)
-                logger.warn(message)
-                return { statusCode: 409 }
-            }
-
-            break
-            
+    switch (event.type) {            
         case "payment_intent.succeeded":
             try {
                 await onPaymentIntentSucceeded({
@@ -113,15 +98,25 @@ export async function handlePaymentHook({
             }
 
             break
-        case "payment_intent.payment_failed": {
+        case "payment_intent.payment_failed":
+            try {
+                await onPaymentIntentFailed({
+                    paymentIntent,
+                    container
+                })
                 const message =
                     paymentIntent.last_payment_error &&
                     paymentIntent.last_payment_error.message
                 logger.error(
                     `The payment of the payment intent ${paymentIntent.id} has failed${EOL}${message}`
                 )
-                break
+            } catch (err) {
+                const message = buildError(event.type, err)
+                logger.warn(message)
+                return { statusCode: 409 }
             }
+
+            break
         default:
             return { statusCode: 204 }
     }
@@ -129,37 +124,27 @@ export async function handlePaymentHook({
     return { statusCode: 200 }
 }
 
-async function onInvoicePaymentEvent({
-    invoice,
-    container
+async function onPaymentIntentFailed({
+    paymentIntent,
+    container,
 }) {
     const manager = container.resolve("manager")
     const subscriptionService = container.resolve("subscriptionService")
-    const stripeBase: StripeBase = container.resolve("stripeProviderService")
-    console.log("Invoice:", invoice)
 
     await manager.transaction(async (transactionManager) => {
-        const stripeSubscription = await stripeBase.getStripe()
-            .subscriptions.retrieve(invoice.subscription)
-        console.log("Subscription:", stripeSubscription)
-
         const subscription = await subscriptionService
-            .retrieveByStripeSubscriptionId(stripeSubscription.id)
+            .withTransaction(transactionManager)
+            .retrieveByStripeSubscriptionId(paymentIntent.metadata.subscription_id)
             .catch(() => undefined)
         
-        if (!subscription) {
-            return
+        if (subscription) {
+            await onSubscriptionUpdate({
+                paymentIntent,
+                container,
+                subscription,
+                transactionManager
+            })
         }
-
-        const payload = {
-            status: getSubscriptionStatus(stripeSubscription.status),
-            current_period_start: new Date(stripeSubscription.current_period_start * 1000),
-            current_period_end: new Date(stripeSubscription.current_period_end * 1000),
-        }
-
-        await subscriptionService
-            .withTransaction(transactionManager)
-            .update(subscription.id, payload)
     })
 }
 
@@ -172,36 +157,98 @@ async function onPaymentIntentSucceeded({
     container,
 }) {
     const manager = container.resolve("manager")
-    console.log(paymentIntent)
+    const subscriptionService = container.resolve("subscriptionService")
 
     await manager.transaction(async (transactionManager) => {
-        if (isPaymentCollection) {
-            await capturePaymenCollectiontIfNecessary({
+        const subscription = await subscriptionService
+            .withTransaction(transactionManager)
+            .retrieveByStripeSubscriptionId(paymentIntent.metadata.subscription_id)
+            .catch(() => undefined)
+        
+        if (subscription) {
+            await onSubscriptionUpdate({
                 paymentIntent,
-                resourceId,
                 container,
+                subscription,
+                transactionManager
             })
         } else {
-            await completeCartIfNecessary({
-                eventId,
-                cartId,
+            if (isPaymentCollection) {
+                await capturePaymenCollectionIfNecessary({
+                    paymentIntent,
+                    resourceId,
+                    container,
+                })
+            } else {
+                await completeCartIfNecessary({
+                    eventId,
+                    cartId,
+                    container,
+                    transactionManager,
+                })
+    
+                await capturePaymentIfNecessary({
+                    cartId,
+                    transactionManager,
+                    container,
+                })
+            }
+            
+            await onSubscriptionCreate({
+                paymentIntent,
                 container,
-                transactionManager,
-            })
-
-            await capturePaymentIfNecessary({
-                cartId,
-                transactionManager,
-                container,
+                transactionManager
             })
         }
-
-        await createSubscription({
-            paymentIntent,
-            container,
-            transactionManager,
-        })
     })
+}
+
+async function onSubscriptionCreate({
+    paymentIntent,
+    container,
+    transactionManager,
+}) {
+    const subscriptionService = container.resolve("subscriptionService")
+    const stripeBase: StripeBase = container.resolve("stripeProviderService")
+    
+    const stripeSubscription = await stripeBase.getStripe()
+            .subscriptions.retrieve(paymentIntent.metadata.subscription_id)
+
+    const payload = {
+        stripe_subscription_id: stripeSubscription.id,
+        status: getSubscriptionStatus(stripeSubscription.status),
+        current_period_start: new Date(stripeSubscription.current_period_start * 1000),
+        current_period_end: new Date(stripeSubscription.current_period_end * 1000),
+        product_id: stripeSubscription.metadata.product_id,
+        customer_id: stripeSubscription.metadata.customer_id
+    }
+
+    await subscriptionService
+        .withTransaction(transactionManager)
+        .create(payload)
+}
+
+async function onSubscriptionUpdate({
+    paymentIntent,
+    container,
+    subscription,
+    transactionManager,
+}) {
+    const subscriptionService = container.resolve("subscriptionService")
+    const stripeBase: StripeBase = container.resolve("stripeProviderService")
+
+    const stripeSubscription = await stripeBase.getStripe()
+        .subscriptions.retrieve(paymentIntent.metadata.subscription_id)
+
+    const payload = {
+        status: getSubscriptionStatus(stripeSubscription.status),
+        current_period_start: new Date(stripeSubscription.current_period_start * 1000),
+        current_period_end: new Date(stripeSubscription.current_period_end * 1000),
+    }
+
+    await subscriptionService
+        .withTransaction(transactionManager)
+        .update(subscription.id, payload)
 }
 
 async function onPaymentAmountCapturableUpdate({ eventId, cartId, container }) {
@@ -217,7 +264,7 @@ async function onPaymentAmountCapturableUpdate({ eventId, cartId, container }) {
     })
 }
 
-async function capturePaymenCollectiontIfNecessary({
+async function capturePaymenCollectionIfNecessary({
     paymentIntent,
     resourceId,
     container,
@@ -316,44 +363,6 @@ async function completeCartIfNecessary({
             )
         }
     }
-}
-
-async function createSubscription({
-    paymentIntent,
-    container,
-    transactionManager,
-}) {
-    const subscriptionService = container.resolve("subscriptionService")
-    const stripeBase: StripeBase = container.resolve("stripeProviderService")
-    const subscriptionId = paymentIntent.metadata.subscription_id
-
-    const subscription = await subscriptionService
-        .retrieveByStripeSubscriptionId(subscriptionId)
-        .catch(() => undefined)
-
-    if (subscription) {
-        throw new MedusaError(
-            MedusaError.Types.CONFLICT,
-            `Subscription with stripe id ${subscriptionId} already exists in the database.`,
-        )
-    }
-    
-    const stripeSubscription = await stripeBase.getStripe()
-            .subscriptions.retrieve(subscriptionId)
-    console.log("Stripe Subscription:", stripeSubscription)
-
-    const payload = {
-        stripe_subscription_id: stripeSubscription.id,
-        status: getSubscriptionStatus(stripeSubscription.status),
-        current_period_start: new Date(stripeSubscription.current_period_start * 1000),
-        current_period_end: new Date(stripeSubscription.current_period_end * 1000),
-        product_id: stripeSubscription.metadata.product_id,
-        customer_id: stripeSubscription.metadata.customer_id
-    }
-
-    await subscriptionService
-        .withTransaction(transactionManager)
-        .create(payload)
 }
 
 function getSubscriptionStatus(status: string): string {

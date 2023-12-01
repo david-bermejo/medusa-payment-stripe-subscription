@@ -173,25 +173,27 @@ async function onPaymentIntentSucceeded({
                 transactionManager
             })
         } else {
-            if (isPaymentCollection) {
-                await capturePaymenCollectionIfNecessary({
-                    paymentIntent,
-                    resourceId,
-                    container,
-                })
-            } else {
-                await completeCartIfNecessary({
-                    eventId,
-                    cartId,
-                    container,
-                    transactionManager,
-                })
-    
-                await capturePaymentIfNecessary({
-                    cartId,
-                    transactionManager,
-                    container,
-                })
+            if (resourceId) {
+                if (isPaymentCollection) {
+                    await capturePaymenCollectionIfNecessary({
+                        paymentIntent,
+                        resourceId,
+                        container,
+                    })
+                } else {
+                    await completeCartIfNecessary({
+                        eventId,
+                        cartId,
+                        container,
+                        transactionManager,
+                    })
+        
+                    await capturePaymentIfNecessary({
+                        cartId,
+                        transactionManager,
+                        container,
+                    })
+                }
             }
             
             await onSubscriptionCreate({

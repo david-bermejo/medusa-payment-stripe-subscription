@@ -158,7 +158,7 @@ async function onSubscriptionDeleted({
 }) {
     const subscriptionService = container.resolve("subscriptionService")
 
-    await subscriptionService.delete(subscription.id)
+    await subscriptionService.disconnect(subscription.id)
 }
 
 async function onInvoicePaymentFailed({

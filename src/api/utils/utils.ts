@@ -9,6 +9,7 @@ import { MedusaError } from "medusa-core-utils"
 import { EOL } from "os"
 import Stripe from "stripe"
 import StripeBase from "../../core/stripe-base"
+import { getNextValidDate } from "./getNextValidDate"
 
 const PAYMENT_PROVIDER_KEY = "pp_stripe"
 
@@ -221,6 +222,7 @@ async function onSubscriptionCreate({
     transactionManager,
 }) {
     const subscriptionService = container.resolve("subscriptionService")
+    const laundryOrderService = container.resolve("laundryOrderService")
     const stripeBase: StripeBase = container.resolve("stripeProviderService")
     
     const stripeSubscription = await stripeBase.getStripe()
@@ -235,9 +237,19 @@ async function onSubscriptionCreate({
         customer_id: stripeSubscription.metadata.customer_id
     }
 
-    await subscriptionService
+    const subscription = await subscriptionService
         .withTransaction(transactionManager)
         .create(payload)
+    
+    // Create first laundry order
+    await laundryOrderService
+        .withTransaction(transactionManager)
+        .create({
+            subscription_id: subscription.id,
+            customer_id: subscription.customer_id,
+            address_id: subscription.customer.metadata.default_shipping_address_id as string,
+            placed_at: getNextValidDate(new Date())
+        })
 }
 
 async function onSubscriptionUpdate({

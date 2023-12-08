@@ -1,6 +1,6 @@
 {
   "name": "medusa-payment-stripe-subscription",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "description": "Stripe Payment provider for Medusa Commerce with Subscriptions support",
   "main": "dist/index.js",
   "repository": {
@@ -20,7 +20,7 @@
   ],
   "devDependencies": {
     "@medusajs/admin": "^7.1.7",
-    "@medusajs/medusa": "1.17.4",
+    "@medusajs/medusa": "^1.17.4",
     "@tanstack/react-table": "^8.7.9",
     "@types/jest": "^29.5.8",
     "@types/stripe": "^8.0.417",

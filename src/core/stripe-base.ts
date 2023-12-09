@@ -234,7 +234,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
 
         return {
             session_data,
-            update_requests: customer?.metadata?.stripe_id
+            update_requests: customer?.metadata?.stripe_id === customer_id
                 ? undefined
                 : {
                     customer_metadata: {

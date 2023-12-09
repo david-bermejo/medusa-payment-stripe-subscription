@@ -152,10 +152,17 @@ abstract class StripeBase extends AbstractPaymentProcessor {
             this.options_?.payment_description) as string
         
         // Check if Stripe customer exists
-        let customer_id: string
-        if (customer?.metadata?.stripe_id) {
-            customer_id = customer?.metadata?.stripe_id as string
-        } else {
+        let customer_id = customer?.metadata?.stripe_id as string | undefined
+        if (customer_id) {
+            try {
+                const stripeCustomer = await this.stripe_.customers.retrieve(customer_id)
+                customer_id = stripeCustomer.id
+            } catch (err) {
+                customer_id = undefined
+            }
+        }
+
+        if (!customer_id) {
             let stripeCustomer: Stripe.Customer
             try {
                 stripeCustomer = await this.stripe_.customers.create({

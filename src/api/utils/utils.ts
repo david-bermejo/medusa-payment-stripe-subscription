@@ -226,9 +226,12 @@ async function onSubscriptionCreate({
     const stripeBase: StripeBase = container.resolve("stripeProviderService")
     
     const stripeSubscription = await stripeBase.getStripe()
-            .subscriptions.retrieve(invoice.subscription)
+        .subscriptions.retrieve(invoice.subscription, {
+            expand: ["latest_invoice"]
+        })
 
     const payload = {
+        stripe_invoice: stripeSubscription.latest_invoice,
         stripe_subscription_id: stripeSubscription.id,
         status: getSubscriptionStatus(stripeSubscription.status),
         current_period_start: new Date(stripeSubscription.current_period_start * 1000),

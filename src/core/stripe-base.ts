@@ -346,7 +346,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
                 })
 
                 
-                console.log(cart.discounts)
+                console.log(cart)
                 if (cart.discounts.length === 0)
                     return
                 

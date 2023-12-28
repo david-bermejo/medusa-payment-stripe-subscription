@@ -313,6 +313,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
         context: PaymentProcessorContext
     ): Promise<PaymentProcessorError | PaymentProcessorSessionResponse | void> {
         const { amount, customer, paymentSessionData } = context
+        console.log(context)
         const stripeId = customer?.metadata?.stripe_id
 
         if (stripeId !== paymentSessionData.customer) {

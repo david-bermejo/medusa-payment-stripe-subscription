@@ -346,9 +346,9 @@ abstract class StripeBase extends AbstractPaymentProcessor {
                 })
 
                 
-                if (cart.discounts.length === 0)
-                return
                 console.log(cart.discounts)
+                if (cart.discounts.length === 0)
+                    return
                 
                 const updatedSubscription = await this.stripe_.subscriptions.update(subscription_id, {
                     promotion_code: cart.discounts[0].metadata.promo_id as string,

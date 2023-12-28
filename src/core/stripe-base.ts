@@ -312,12 +312,18 @@ abstract class StripeBase extends AbstractPaymentProcessor {
     async updatePayment(
         context: PaymentProcessorContext
     ): Promise<PaymentProcessorError | PaymentProcessorSessionResponse | void> {
-        const { amount, customer, paymentSessionData } = context
-        console.log(context)
+        const {
+            amount,
+            customer,
+            resource_id,
+            paymentSessionData
+        } = context
+        
         const stripeId = customer?.metadata?.stripe_id
 
         if (stripeId !== paymentSessionData.customer) {
             const result = await this.initiatePayment(context)
+            
             if (isPaymentProcessorError(result)) {
                 return this.buildError(
                     "An error occurred in updatePayment during the initiate of the new payment for the new customer",
@@ -332,10 +338,18 @@ abstract class StripeBase extends AbstractPaymentProcessor {
             }
 
             try {
-                const id = paymentSessionData.id as string
-                const sessionData = (await this.stripe_.paymentIntents.update(id, {
-                    amount: Math.round(amount),
-                })) as unknown as PaymentProcessorSessionResponse["session_data"]
+                // Apply discounts
+                const cart = await this.cartService.retrieve(resource_id, {
+                    relations: ["discounts", "discounts.metadata"]
+                })
+                
+                const subscription_id = (paymentSessionData.metadata as any).subscription_id as string
+                const updatedSubscription = await this.stripe_.subscriptions.update(subscription_id, {
+                    promotion_code: cart.discounts[0].metadata.promo_id as string,
+                    expand: ['latest_invoice.payment_intent'],
+                })
+
+                const sessionData = (updatedSubscription.latest_invoice as Stripe.Invoice).payment_intent as unknown as Record<string, unknown>
 
                 return { session_data: sessionData }
             } catch (e) {

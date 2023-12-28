@@ -316,7 +316,8 @@ abstract class StripeBase extends AbstractPaymentProcessor {
             amount,
             customer,
             resource_id,
-            paymentSessionData
+            paymentSessionData,
+            context: cart_context
         } = context
         
         const stripeId = customer?.metadata?.stripe_id
@@ -346,7 +347,7 @@ abstract class StripeBase extends AbstractPaymentProcessor {
                 })
 
                 
-                console.log(cart)
+                console.log(cart_context)
                 if (cart.discounts.length === 0)
                     return
                 

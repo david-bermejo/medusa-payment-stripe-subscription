@@ -342,17 +342,12 @@ abstract class StripeBase extends AbstractPaymentProcessor {
                 // Apply discounts
                 const subscription_id = (paymentSessionData.metadata as any).subscription_id as string
 
-                const cart = await this.cartService.retrieve(resource_id, {
-                    relations: ["discounts"]
-                })
-
-                
                 console.log(cart_context)
-                if (cart.discounts.length === 0)
+                if (!cart_context.promo_id)
                     return
                 
                 const updatedSubscription = await this.stripe_.subscriptions.update(subscription_id, {
-                    promotion_code: cart.discounts[0].metadata.promo_id as string,
+                    promotion_code: cart_context.promo_id as string,
                     expand: ['latest_invoice.payment_intent'],
                 })
 
